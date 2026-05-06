@@ -8,14 +8,13 @@
 
 ## 한 줄 상태
 
-- **State**: 🟡 in_progress (v0.1.3 — 메시지 정렬 + 첫 git commits)
-- **Last session**: 2026-05-06 (autonomous, 네 번째 사이클)
+- **State**: 🟡 in_progress (v0.1.4 — 카드 복사 버튼 + 텍스트 선택 안정화)
+- **Last session**: 2026-05-06 (autonomous, 다섯 번째 사이클)
 - **Next action**: `~/Applications/Pin.app` 재실행 → 확인:
-  1. 기본으로 최신 메시지가 맨 위에 오는지 (newest-first)
-  2. 툴바 가운데 정렬 Picker로 oldest-first로 바꿨을 때 자연스러운지
-  3. 정렬 바꾸면 자동 스크롤 동작 (위/아래)이 기대대로인지
-  4. 다음 실행 시 마지막 정렬 선택이 유지되는지
-  + v0.1.2 폰트 / always-on-top 토글, v0.1.1 intermediate 숨김 등 이전 검증 항목들도 같이 점검
+  1. 카드의 새 복사 아이콘(`doc.on.doc`) 클릭 시 전체 텍스트 클립보드에 들어가는지
+  2. 클릭 후 1.2초간 체크마크로 바뀌는 피드백
+  3. 카드 안 텍스트 드래그 selection이 이전보다 자연스러워졌는지 (MarkdownUI 한계로 100% 보장은 아님)
+  4. preview 카드 / pinned full 카드 / intermediate 카드 모두 동일하게 동작
 
 > State 값: 🟢 `idle` (보류 항목 없음, 새로 시작 가능) / 🟡 `in_progress` (작업 중) / 🔴 `blocked` (사용자 입력·외부 요인 대기)
 
@@ -28,7 +27,13 @@
 2. Claude Code / Codex / Gemini 모두 탐색 → 도구 선택 → 세션 목록 → 메시지 핀
 3. 메시지 카드는 preview, 핀하면 전체
 
-**v0.1.3 추가 작업 (이번 사이클의 마지막):**
+**v0.1.4 추가 작업 (이번 사이클의 마지막):**
+- 카드에 Copy 버튼 (`doc.on.doc` 아이콘) — 전체 텍스트를 NSPasteboard에 복사 + 체크마크 피드백 1.2초
+- `.textSelection(.enabled)`를 카드 outer VStack으로 hoist — 부분 선택 일관성 향상
+- 모든 카드 모드(preview/full/intermediate)에서 동일 동작
+- `~/Applications/Pin.app` 재설치
+
+**v0.1.3 추가 작업:**
 - `MessageSortOrder` enum (newest/oldest first)
 - Store에 `sortOrder` `@Published` + UserDefaults 영속
 - `visibleMessages` / `pinned` 둘 다 정렬 적용

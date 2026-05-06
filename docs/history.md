@@ -483,4 +483,26 @@
 
 ---
 
+## 24. 카드 복사 버튼 + 텍스트 선택 안정화
+
+**사용자 피드백**:
+1. pin된 카드의 전체 텍스트를 한 번에 복사하고 싶다.
+2. 부분 텍스트를 드래그해서 복사할 수 있으면 좋겠는데 지금은 안 긇힌다.
+
+**결정**:
+- **Copy 버튼 추가** — `doc.on.doc` 아이콘, role 뱃지·확장·핀 버튼들 사이에. 누르면 `NSPasteboard.general`에 message.text 전체 복사 + 1.2초 동안 `checkmark`로 시각 피드백.
+- **`.textSelection(.enabled)`을 카드 최상위 VStack으로 끌어올림**. 이전엔 Markdown / Text 각각에 직접 붙어있었는데, 외곽으로 hoist하면 SwiftUI inheritance가 일관되게 적용됨.
+
+**근거**:
+- MarkdownUI는 `.textSelection`을 element 단위(`paragraph`, `code-block` 등)로 처리해서 문서 전체를 한 번에 드래그하는 selection이 100% 안정적이지 않음 — 알려진 한계. **Copy 버튼이 가장 신뢰할 수 있는 1차 해법.**
+- selection 자체도 외곽 modifier로 옮겨두면 Markdown 내부 element들이 inherit해서 동작 일관성이 올라감 — 부분 선택이 안 되는 영역을 줄여줌. 완전 보장은 아니지만 향상.
+- 시각 피드백(체크마크)은 짧게: 클릭 → "Copied!" 직관성. ⌘C 단축키는 카드가 포커스를 안 잡아서 의미 없으니 스킵.
+- pin된 메시지뿐 아니라 모든 카드(preview·full)에 동일하게 작동 — 일관성.
+
+**대안 검토**:
+- "선택 가능한 plain-text 모드 토글" — 마크다운 포맷이 사라지는 trade-off가 커서 보류.
+- `MarkdownUI` 대신 `AttributedString` + `Text`로 자체 렌더 — 비용이 크고 코드 블록 syntax highlighting이 약해짐. 보류.
+
+---
+
 > **현재 상태 / 다음 작업은 `docs/status.md`에 있음.** 이 문서는 의사결정 narrative만 담는다.

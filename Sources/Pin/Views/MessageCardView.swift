@@ -15,6 +15,8 @@ struct MessageCardView: View {
     let onTogglePin: () -> Void
     let onToggleExpanded: () -> Void
 
+    @State private var justCopied: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 6) {
@@ -31,6 +33,13 @@ struct MessageCardView: View {
                     .buttonStyle(.borderless)
                     .help(isExpanded ? "Collapse" : "Expand")
                 }
+                Button(action: copyAll) {
+                    Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 12))
+                        .foregroundStyle(justCopied ? Color.green : Color.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(justCopied ? "Copied!" : "Copy entire message")
                 Button(action: onTogglePin) {
                     Image(systemName: isPinned ? "pin.fill" : "pin")
                         .font(.system(size: 12))
@@ -51,6 +60,17 @@ struct MessageCardView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(isPinned ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
         )
+        .textSelection(.enabled)
+    }
+
+    private func copyAll() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(message.text, forType: .string)
+        justCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            justCopied = false
+        }
     }
 
     @ViewBuilder
