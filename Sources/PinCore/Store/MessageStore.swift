@@ -19,14 +19,35 @@ public final class MessageStore: ObservableObject {
     }
 
     private static let sortOrderKey = "pin.messageSortOrder"
+    private static let pinnedBySessionKey = "pin.pinnedBySession"
 
     private var watcher: SessionWatcher?
+    private var pinnedBySession: [String: [String]] = [:]
 
     public init() {
         if let raw = UserDefaults.standard.string(forKey: Self.sortOrderKey),
            let order = MessageSortOrder(rawValue: raw) {
             self.sortOrder = order
         }
+        if let dict = UserDefaults.standard.dictionary(forKey: Self.pinnedBySessionKey)
+            as? [String: [String]] {
+            self.pinnedBySession = dict
+        }
+    }
+
+    private func sessionKey(_ ref: SessionRef) -> String {
+        "\(ref.sourceTool.rawValue):\(ref.id)"
+    }
+
+    private func persistPinned() {
+        guard let ref = selectedSession else { return }
+        let key = sessionKey(ref)
+        if pinnedIds.isEmpty {
+            pinnedBySession.removeValue(forKey: key)
+        } else {
+            pinnedBySession[key] = Array(pinnedIds)
+        }
+        UserDefaults.standard.set(pinnedBySession, forKey: Self.pinnedBySessionKey)
     }
 
     public func refreshSessions() {
@@ -53,7 +74,7 @@ public final class MessageStore: ObservableObject {
         watcher?.stop()
         watcher = nil
         messages = []
-        pinnedIds = []
+        pinnedIds = Set(pinnedBySession[sessionKey(ref)] ?? [])
         expandedIds = []
         selectedSession = ref
         selectedTool = ref.sourceTool
@@ -107,6 +128,7 @@ public final class MessageStore: ObservableObject {
         } else {
             pinnedIds.insert(id)
         }
+        persistPinned()
     }
 
     public func isPinned(_ id: String) -> Bool {

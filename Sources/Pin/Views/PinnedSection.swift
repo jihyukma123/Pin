@@ -1,25 +1,19 @@
 import SwiftUI
 import PinCore
 
-struct PinnedSection: View {
+struct PinnedFullView: View {
     @EnvironmentObject private var store: MessageStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: "pin.fill")
-                    .foregroundStyle(.tint)
-                    .font(.caption)
-                Text("Pinned (\(store.pinned.count))")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-
+        if store.pinned.isEmpty {
+            ContentUnavailableView(
+                "고정된 메시지가 없습니다",
+                systemImage: "pin.slash",
+                description: Text("List 탭에서 메시지의 핀 아이콘을 눌러 고정해.")
+            )
+        } else {
             ScrollView {
-                LazyVStack(spacing: 6) {
+                LazyVStack(spacing: 8) {
                     ForEach(store.pinned) { msg in
                         MessageCardView(
                             message: msg,
@@ -31,11 +25,8 @@ struct PinnedSection: View {
                         )
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 8)
+                .padding(10)
             }
-            .frame(maxHeight: 360)
         }
-        .background(Color(nsColor: .underPageBackgroundColor).opacity(0.5))
     }
 }
