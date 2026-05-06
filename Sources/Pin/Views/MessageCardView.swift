@@ -3,8 +3,8 @@ import MarkdownUI
 import PinCore
 
 enum MessageCardMode {
-    case preview      // 짧은 미리보기 (4줄). expand 토글 가능.
-    case full         // 핀된 카드. 전체 마크다운 렌더.
+    case preview
+    case full
 }
 
 struct MessageCardView: View {
@@ -12,66 +12,109 @@ struct MessageCardView: View {
     let mode: MessageCardMode
     let isPinned: Bool
     let isExpanded: Bool
+    var tintWhenPinned: Bool = true
     let onTogglePin: () -> Void
     let onToggleExpanded: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var justCopied: Bool = false
+    @State private var hovering: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 6) {
-                roleBadge
-                Spacer()
-                Text(timeString)
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                if mode == .preview {
-                    Button(action: onToggleExpanded) {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.borderless)
-                    .help(isExpanded ? "Collapse" : "Expand")
-                }
-                Button(action: copyAll) {
-                    Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 12))
-                        .foregroundStyle(justCopied ? Color.green : Color.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help(justCopied ? "Copied!" : "Copy entire message")
-                Button(action: onTogglePin) {
-                    Image(systemName: isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 12))
-                        .foregroundStyle(isPinned ? Color.accentColor : Color.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help(isPinned ? "Unpin" : "Pin")
-            }
+        HStack(alignment: .top, spacing: 0) {
+            // Pin accent: 좌측 미니멀 바
+            Rectangle()
+                .fill(isPinned ? Color.pinHighlight : .clear)
+                .frame(width: 2)
 
-            content
+            VStack(alignment: .leading, spacing: 8) {
+                header
+                content
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(backgroundColor)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(isPinned ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: 0.5)
         )
         .textSelection(.enabled)
+        .onHover { hovering = $0 }
     }
 
-    private func copyAll() {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(message.text, forType: .string)
-        justCopied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            justCopied = false
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(roleColor)
+                    .frame(width: 6, height: 6)
+                Text(roleLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                if message.kind == .assistantIntermediate {
+                    Text("intermediate")
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            Text(timeString)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.tertiary)
+
+            actionButtons
         }
     }
+
+    private var actionButtons: some View {
+        HStack(spacing: 2) {
+            if mode == .preview {
+                iconButton(
+                    system: isExpanded ? "chevron.up" : "chevron.down",
+                    tint: .secondary,
+                    help: isExpanded ? "Collapse" : "Expand",
+                    action: onToggleExpanded
+                )
+            }
+            iconButton(
+                system: justCopied ? "checkmark" : "doc.on.doc",
+                tint: justCopied ? .green : .secondary,
+                help: justCopied ? "Copied" : "Copy",
+                action: copyAll
+            )
+            iconButton(
+                system: isPinned ? "pin.fill" : "pin",
+                tint: isPinned ? Color.pinHighlight : .secondary,
+                help: isPinned ? "Unpin" : "Pin",
+                action: onTogglePin
+            )
+        }
+        .opacity(hovering || isPinned || justCopied ? 1.0 : 0.55)
+        .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+
+    private func iconButton(system: String, tint: Color, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(tint)
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    // MARK: - Content
 
     @ViewBuilder
     private var content: some View {
@@ -87,57 +130,86 @@ struct MessageCardView: View {
                     .textSelection(.enabled)
             } else {
                 Text(previewText)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary.opacity(0.85))
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(.primary.opacity(0.86))
                     .lineLimit(4)
                     .truncationMode(.tail)
                     .textSelection(.enabled)
+                    .lineSpacing(2)
             }
         }
     }
 
     private var previewText: String {
-        let cleaned = message.text
+        message.text
             .replacingOccurrences(of: "\n+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned
     }
 
-    @ViewBuilder
-    private var roleBadge: some View {
-        let label: String = {
-            switch message.kind {
-            case .userInput: return "USER"
-            case .assistantFinal: return "AI"
-            case .assistantIntermediate: return "AI · intermediate"
-            }
-        }()
-        let color: Color = {
-            switch message.kind {
-            case .userInput: return .blue
-            case .assistantFinal: return .purple
-            case .assistantIntermediate: return .secondary
-            }
-        }()
-        Text(label)
-            .font(.system(.caption2, design: .monospaced).weight(.bold))
-            .foregroundStyle(color)
+    private func copyAll() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(message.text, forType: .string)
+        justCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            justCopied = false
+        }
+    }
+
+    // MARK: - Style
+
+    private var roleLabel: String {
+        switch message.kind {
+        case .userInput: return "User"
+        case .assistantFinal: return "Assistant"
+        case .assistantIntermediate: return "Assistant"
+        }
+    }
+
+    private var roleColor: Color {
+        switch message.kind {
+        case .userInput: return .blue
+        case .assistantFinal: return .purple
+        case .assistantIntermediate: return .gray
+        }
     }
 
     private var backgroundColor: Color {
+        if isPinned && tintWhenPinned {
+            return colorScheme == .dark
+                ? Color.pinHighlight.opacity(0.12)
+                : Color.pinHighlight.opacity(0.08)
+        }
         switch message.kind {
         case .userInput:
-            return Color(nsColor: .controlBackgroundColor).opacity(0.6)
+            return colorScheme == .dark
+                ? Color.white.opacity(0.03)
+                : Color(nsColor: .controlBackgroundColor)
         case .assistantFinal:
-            return Color(nsColor: .textBackgroundColor)
+            return colorScheme == .dark
+                ? Color.white.opacity(0.05)
+                : Color(nsColor: .textBackgroundColor)
         case .assistantIntermediate:
-            return Color(nsColor: .underPageBackgroundColor).opacity(0.4)
+            return colorScheme == .dark
+                ? Color.white.opacity(0.02)
+                : Color(nsColor: .windowBackgroundColor).opacity(0.5)
         }
+    }
+
+    private var borderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.06)
+            : Color.black.opacity(0.06)
     }
 
     private var timeString: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
+        formatter.dateFormat = "HH:mm"
         return formatter.string(from: message.timestamp)
     }
+}
+
+extension Color {
+    /// 핀 강조용 앰버. 시스템 액센트(빨강 등)에 흔들리지 않도록 고정 색.
+    static let pinHighlight = Color(red: 0.851, green: 0.624, blue: 0.180)
 }

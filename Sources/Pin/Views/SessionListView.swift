@@ -10,57 +10,93 @@ struct SessionListView: View {
     }
 
     var body: some View {
-        List(selection: Binding<SessionRef?>(
-            get: { store.selectedSession },
-            set: { ref in if let ref { store.openSession(ref) } }
-        )) {
-            if sessions.isEmpty {
-                emptyState
-            } else {
-                ForEach(sessions) { ref in
-                    SessionRow(ref: ref)
-                        .tag(ref)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 2) {
+                if sessions.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(sessions) { ref in
+                        SessionRow(
+                            ref: ref,
+                            isSelected: store.selectedSession?.id == ref.id,
+                            onSelect: { store.openSession(ref) }
+                        )
+                    }
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
         }
-        .listStyle(.inset)
         .navigationTitle(store.selectedTool?.displayName ?? "Sessions")
     }
 
     @ViewBuilder
     private var emptyState: some View {
-        if let tool = store.selectedTool {
-            Text("No sessions for \(tool.displayName)")
-                .foregroundStyle(.secondary)
-                .padding()
-        } else {
-            Text("Select a tool")
-                .foregroundStyle(.secondary)
-                .padding()
+        VStack(spacing: 6) {
+            Image(systemName: "tray")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(.tertiary)
+            if let tool = store.selectedTool {
+                Text("No sessions for \(tool.displayName)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Select a tool")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
     }
 }
 
 struct SessionRow: View {
     let ref: SessionRef
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @State private var hovering = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(ref.title)
-                .font(.system(.body, design: .default))
-                .lineLimit(2)
-            HStack(spacing: 6) {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ref.title)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.9))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 Text(relativeTime)
-                    .font(.caption2.monospacedDigit())
+                    .font(.system(size: 11, design: .rounded))
                     .foregroundStyle(.secondary)
-                Text("·")
-                    .foregroundStyle(.secondary)
-                Text(String(ref.id.prefix(8)))
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.tertiary)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(backgroundFill)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: hovering)
+    }
+
+    private var backgroundFill: Color {
+        if isSelected {
+            return colorScheme == .dark
+                ? Color.accentColor.opacity(0.22)
+                : Color.accentColor.opacity(0.14)
+        }
+        if hovering {
+            return colorScheme == .dark
+                ? Color.white.opacity(0.06)
+                : Color.black.opacity(0.04)
+        }
+        return .clear
     }
 
     private var relativeTime: String {

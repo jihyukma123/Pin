@@ -30,7 +30,6 @@ enum Appearance: String, CaseIterable, Identifiable {
 @main
 struct PinApp: App {
     @StateObject private var store = MessageStore()
-    @AppStorage("alwaysOnTop") private var alwaysOnTop: Bool = false
     @AppStorage("appearance") private var appearanceRaw: String = Appearance.system.rawValue
 
     private var appearance: Appearance {
@@ -45,7 +44,6 @@ struct PinApp: App {
                 .task {
                     store.refreshSessions()
                 }
-                .background(WindowConfigurator(alwaysOnTop: alwaysOnTop))
                 .preferredColorScheme(appearance.scheme)
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
@@ -61,13 +59,6 @@ struct PinApp: App {
                         }
                         .help("Appearance: \(appearance.label)")
                     }
-                    ToolbarItem(placement: .primaryAction) {
-                        Toggle(isOn: $alwaysOnTop) {
-                            Image(systemName: alwaysOnTop ? "pin.circle.fill" : "pin.circle")
-                        }
-                        .toggleStyle(.button)
-                        .help(alwaysOnTop ? "Floating: window stays on top" : "Floating off: normal window behavior")
-                    }
                 }
         }
         .windowStyle(.titleBar)
@@ -78,8 +69,6 @@ struct PinApp: App {
                     store.refreshSessions()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
-                Toggle("Always on top", isOn: $alwaysOnTop)
-                    .keyboardShortcut("t", modifiers: [.command, .shift])
                 Divider()
                 Picker("Appearance", selection: $appearanceRaw) {
                     ForEach(Appearance.allCases) { a in
@@ -87,24 +76,6 @@ struct PinApp: App {
                     }
                 }
             }
-        }
-    }
-}
-
-/// alwaysOnTop 변경 시마다 NSWindow의 level / collectionBehavior 업데이트.
-struct WindowConfigurator: NSViewRepresentable {
-    let alwaysOnTop: Bool
-
-    func makeNSView(context: Context) -> NSView { NSView() }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            guard let window = nsView.window else { return }
-            window.level = alwaysOnTop ? .floating : .normal
-            window.collectionBehavior = alwaysOnTop
-                ? [.canJoinAllSpaces, .fullScreenAuxiliary]
-                : [.fullScreenPrimary]
-            window.titlebarAppearsTransparent = true
         }
     }
 }

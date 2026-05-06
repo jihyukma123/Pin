@@ -10,7 +10,7 @@ struct MessageListView: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 10) {
                         ForEach(store.visibleMessages) { msg in
                             MessageCardView(
                                 message: msg,
@@ -23,7 +23,8 @@ struct MessageListView: View {
                             .id(msg.id)
                         }
                     }
-                    .padding(10)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
                 }
                 .onChange(of: store.visibleMessages.count) { _, _ in
                     autoScroll(proxy: proxy)
@@ -50,21 +51,26 @@ struct MessageListView: View {
     @ViewBuilder
     private var intermediateToggleBar: some View {
         if store.intermediateCount > 0 {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Toggle(isOn: Binding(
                     get: { store.showIntermediate },
                     set: { store.showIntermediate = $0 }
                 )) {
-                    Text("Show intermediate (\(store.intermediateCount))")
-                        .font(.caption)
+                    HStack(spacing: 4) {
+                        Text("Show intermediate")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        Text("\(store.intermediateCount)")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 .toggleStyle(.checkbox)
+                .controlSize(.small)
                 Spacer()
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            .background(.bar)
-            Divider()
         }
     }
 }

@@ -33,6 +33,8 @@ struct AppView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(minWidth: 140)
                 .help("Message sort order")
             }
         }
