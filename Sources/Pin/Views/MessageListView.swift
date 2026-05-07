@@ -12,15 +12,8 @@ struct MessageListView: View {
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(store.visibleMessages) { msg in
-                            MessageCardView(
-                                message: msg,
-                                mode: .preview,
-                                isPinned: store.isPinned(msg.id),
-                                isExpanded: store.isExpanded(msg.id),
-                                onTogglePin: { store.togglePin(msg.id) },
-                                onToggleExpanded: { store.toggleExpanded(msg.id) }
-                            )
-                            .id(msg.id)
+                            bubbleRow(for: msg)
+                                .id(msg.id)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -33,6 +26,25 @@ struct MessageListView: View {
                     autoScroll(proxy: proxy)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func bubbleRow(for msg: ParsedMessage) -> some View {
+        let isUser = msg.kind == .userInput
+        HStack(spacing: 0) {
+            if isUser { Spacer(minLength: 40) }
+            MessageCardView(
+                message: msg,
+                mode: .preview,
+                isPinned: store.isPinned(msg.id),
+                isExpanded: store.isExpanded(msg.id),
+                bubble: true,
+                onTogglePin: { store.togglePin(msg.id) },
+                onToggleExpanded: { store.toggleExpanded(msg.id) }
+            )
+            .frame(maxWidth: 620, alignment: isUser ? .trailing : .leading)
+            if !isUser { Spacer(minLength: 40) }
         }
     }
 
@@ -57,7 +69,7 @@ struct MessageListView: View {
                     set: { store.showIntermediate = $0 }
                 )) {
                     HStack(spacing: 4) {
-                        Text("Show intermediate")
+                        Text("Show tool-call notes")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
                         Text("\(store.intermediateCount)")

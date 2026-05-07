@@ -32,9 +32,17 @@ public enum CodexAdapter {
 
         let id = (payload["id"] as? String) ?? fallbackId()
 
-        // Codex는 단일 이벤트로 final/intermediate를 구분하기 힘들다 (function_call이 별도 라인).
-        // 안전하게 final 취급. 추후 stateful 트래킹으로 정밀화 가능.
-        let kind: MessageKind = role == .user ? .userInput : .assistantFinal
+        // Codex는 assistant 메시지에 phase 필드를 둔다.
+        // - "final_answer" (또는 누락): 사용자에게 보내는 최종 답변
+        // - "commentary": 도구 호출 사이의 중간 코멘트 (thinking)
+        // user는 항상 userInput.
+        let kind: MessageKind
+        if role == .user {
+            kind = .userInput
+        } else {
+            let phase = payload["phase"] as? String
+            kind = (phase == "commentary") ? .assistantIntermediate : .assistantFinal
+        }
 
         return ParsedMessage(
             id: id,

@@ -112,6 +112,34 @@ final class GeminiAdapterTests: XCTestCase {
         XCTAssertEqual(msgs[1].kind, .assistantFinal)
     }
 
+    func testParsesNewJSONLFormat() {
+        let lines = [
+            "{\"sessionId\":\"\(sessionId)\",\"projectHash\":\"abc\",\"startTime\":\"\(timestamp)\",\"kind\":\"main\"}",
+            "{\"id\":\"i1\",\"type\":\"info\",\"content\":\"update available\",\"timestamp\":\"\(timestamp)\"}",
+            "{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"\(timestamp)\",\"content\":[{\"text\":\"hi\"}]}",
+            "{\"$set\":{\"lastUpdated\":\"\(timestamp)\"}}",
+            "{\"id\":\"g1\",\"type\":\"gemini\",\"timestamp\":\"\(timestamp)\",\"content\":\"\",\"thoughts\":[{\"subject\":\"x\",\"description\":\"y\"}]}",
+            "{\"id\":\"g2\",\"type\":\"gemini\",\"timestamp\":\"\(timestamp)\",\"content\":\"final answer\"}",
+            "{\"id\":\"g3\",\"type\":\"gemini\",\"timestamp\":\"\(timestamp)\",\"content\":\"checking files\",\"toolCalls\":[{\"id\":\"tc\",\"name\":\"read\"}]}"
+        ]
+        let msgs = GeminiAdapter.parseJSONL(text: lines.joined(separator: "\n"))
+        XCTAssertEqual(msgs.count, 3)
+        XCTAssertEqual(msgs.map(\.role), [.user, .assistant, .assistant])
+        XCTAssertEqual(msgs.map(\.text), ["hi", "final answer", "checking files"])
+        XCTAssertEqual(msgs.map(\.kind), [.userInput, .assistantFinal, .assistantIntermediate])
+        XCTAssertEqual(msgs[0].sessionId, sessionId)
+    }
+
+    func testExtractMetaFromJSONL() throws {
+        let lines = [
+            "{\"sessionId\":\"\(sessionId)\",\"projectHash\":\"abc\",\"startTime\":\"\(timestamp)\"}",
+            "{\"id\":\"u1\",\"type\":\"user\",\"timestamp\":\"\(timestamp)\",\"content\":[{\"text\":\"first question\"}]}"
+        ]
+        let meta = try XCTUnwrap(GeminiAdapter.extractMetaFromJSONL(text: lines.joined(separator: "\n")))
+        XCTAssertEqual(meta.sessionId, sessionId)
+        XCTAssertEqual(meta.firstUserText, "first question")
+    }
+
     func testExtractTitleFallsBackToFirstUser() {
         let root: [String: Any] = [
             "sessionId": sessionId,

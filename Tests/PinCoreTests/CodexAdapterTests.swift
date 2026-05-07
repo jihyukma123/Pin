@@ -86,6 +86,40 @@ final class CodexAdapterTests: XCTestCase {
         XCTAssertNil(CodexAdapter.parse(line: l, sessionId: sessionId, fallbackId: { "fb" }))
     }
 
+    func testCommentaryPhaseIsIntermediate() throws {
+        let l = line([
+            "timestamp": timestamp,
+            "type": "response_item",
+            "payload": [
+                "type": "message",
+                "role": "assistant",
+                "phase": "commentary",
+                "content": [
+                    ["type": "output_text", "text": "let me check"]
+                ]
+            ]
+        ])
+        let msg = try XCTUnwrap(CodexAdapter.parse(line: l, sessionId: sessionId, fallbackId: { "fb" }))
+        XCTAssertEqual(msg.kind, .assistantIntermediate)
+    }
+
+    func testFinalAnswerPhaseIsFinal() throws {
+        let l = line([
+            "timestamp": timestamp,
+            "type": "response_item",
+            "payload": [
+                "type": "message",
+                "role": "assistant",
+                "phase": "final_answer",
+                "content": [
+                    ["type": "output_text", "text": "done"]
+                ]
+            ]
+        ])
+        let msg = try XCTUnwrap(CodexAdapter.parse(line: l, sessionId: sessionId, fallbackId: { "fb" }))
+        XCTAssertEqual(msg.kind, .assistantFinal)
+    }
+
     func testIgnoresFunctionCall() {
         let l = line([
             "timestamp": timestamp,

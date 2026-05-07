@@ -26,16 +26,20 @@ public enum GeminiLocator {
                 options: [.skipsHiddenFiles]
             ) else { continue }
 
-            for file in chats where file.pathExtension == "json" {
-                guard let ref = makeRef(from: file) else { continue }
-                sessions.append(ref)
+            for file in chats {
+                let ext = file.pathExtension
+                if ext == "json" {
+                    if let ref = makeRefFromJSON(file) { sessions.append(ref) }
+                } else if ext == "jsonl" {
+                    if let ref = makeRefFromJSONL(file) { sessions.append(ref) }
+                }
             }
         }
 
         return sessions.sorted { $0.lastModified > $1.lastModified }
     }
 
-    private static func makeRef(from url: URL) -> SessionRef? {
+    private static func makeRefFromJSON(_ url: URL) -> SessionRef? {
         guard let data = try? Data(contentsOf: url),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
@@ -44,6 +48,27 @@ public enum GeminiLocator {
         let title = GeminiAdapter.extractTitle(from: root) ?? "session-\(String(sessionId.prefix(8)))"
         return SessionRef(
             id: sessionId,
+            title: title,
+            sourceTool: .gemini,
+            fileURL: url,
+            lastModified: mtime(url)
+        )
+    }
+
+    private static func makeRefFromJSONL(_ url: URL) -> SessionRef? {
+        guard let data = try? Data(contentsOf: url),
+              let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        guard let meta = GeminiAdapter.extractMetaFromJSONL(text: text) else { return nil }
+        let title: String = {
+            if let t = meta.firstUserText, !t.isEmpty {
+                return String(t.prefix(60))
+            }
+            return "session-\(String(meta.sessionId.prefix(8)))"
+        }()
+        return SessionRef(
+            id: meta.sessionId,
             title: title,
             sourceTool: .gemini,
             fileURL: url,

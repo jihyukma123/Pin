@@ -13,6 +13,7 @@ struct MessageCardView: View {
     let isPinned: Bool
     let isExpanded: Bool
     var tintWhenPinned: Bool = true
+    var bubble: Bool = false
     let onTogglePin: () -> Void
     let onToggleExpanded: () -> Void
 
@@ -21,6 +22,14 @@ struct MessageCardView: View {
     @State private var hovering: Bool = false
 
     var body: some View {
+        if bubble {
+            bubbleBody
+        } else {
+            cardBody
+        }
+    }
+
+    private var cardBody: some View {
         HStack(alignment: .top, spacing: 0) {
             // Pin accent: 좌측 미니멀 바
             Rectangle()
@@ -47,6 +56,26 @@ struct MessageCardView: View {
         .onHover { hovering = $0 }
     }
 
+    private var bubbleBody: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            header
+            content
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(backgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(isPinned ? Color.pinHighlight.opacity(0.5) : borderColor,
+                              lineWidth: isPinned ? 1 : 0.5)
+        )
+        .textSelection(.enabled)
+        .onHover { hovering = $0 }
+    }
+
     // MARK: - Header
 
     private var header: some View {
@@ -59,7 +88,7 @@ struct MessageCardView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 if message.kind == .assistantIntermediate {
-                    Text("intermediate")
+                    Text("tool-call note")
                         .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(.tertiary)
                 }
@@ -161,8 +190,12 @@ struct MessageCardView: View {
     private var roleLabel: String {
         switch message.kind {
         case .userInput: return "User"
-        case .assistantFinal: return "Assistant"
-        case .assistantIntermediate: return "Assistant"
+        case .assistantFinal, .assistantIntermediate:
+            switch message.sourceTool {
+            case .claudeCode: return "Claude"
+            case .codex: return "Codex"
+            case .gemini: return "Gemini"
+            }
         }
     }
 
@@ -179,6 +212,22 @@ struct MessageCardView: View {
             return colorScheme == .dark
                 ? Color.pinHighlight.opacity(0.12)
                 : Color.pinHighlight.opacity(0.08)
+        }
+        if bubble {
+            switch message.kind {
+            case .userInput:
+                return colorScheme == .dark
+                    ? Color.blue.opacity(0.22)
+                    : Color.blue.opacity(0.12)
+            case .assistantFinal:
+                return colorScheme == .dark
+                    ? Color.white.opacity(0.06)
+                    : Color(red: 0.93, green: 0.93, blue: 0.95)
+            case .assistantIntermediate:
+                return colorScheme == .dark
+                    ? Color.white.opacity(0.03)
+                    : Color(red: 0.96, green: 0.96, blue: 0.97)
+            }
         }
         switch message.kind {
         case .userInput:

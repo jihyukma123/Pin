@@ -7,12 +7,103 @@ public enum GeminiAdapter {
     public static let sourceTool: SourceTool = .gemini
 
     public static func parseFile(at url: URL) -> [ParsedMessage] {
-        guard let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        // 새 포맷(.jsonl): 첫 줄 header + 각 줄이 이벤트.
+        if url.pathExtension == "jsonl" {
+            guard let text = String(data: data, encoding: .utf8) else { return [] }
+            return parseJSONL(text: text)
+        }
+        // 레거시 포맷(.json): 단일 JSON 문서.
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return []
         }
         return parseRoot(root)
+    }
+
+    /// 새 .jsonl 포맷 전체 파싱. 헤더 한 줄 + 이벤트들.
+    public static func parseJSONL(text: String) -> [ParsedMessage] {
+        var sessionId: String?
+        var out: [ParsedMessage] = []
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard let data = raw.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { continue }
+            // 헤더 라인: sessionId + projectHash 동반.
+            if obj["type"] == nil, let sid = obj["sessionId"] as? String {
+                sessionId = sid
+                continue
+            }
+            guard let sid = sessionId else { continue }
+            if let msg = parseLine(event: obj, sessionId: sid) {
+                out.append(msg)
+            }
+        }
+        return out
+    }
+
+    /// 새 .jsonl 포맷의 한 이벤트(이미 파싱된 dict)를 ParsedMessage로.
+    public static func parseLine(event: [String: Any], sessionId: String) -> ParsedMessage? {
+        guard let typeStr = event["type"] as? String else { return nil }
+        let role: Role
+        switch typeStr {
+        case "user": role = .user
+        case "gemini": role = .assistant
+        default: return nil   // info / $set / 기타 무시
+        }
+        guard let id = event["id"] as? String else { return nil }
+        guard let timestampStr = event["timestamp"] as? String,
+              let timestamp = parseISO8601(timestampStr) else { return nil }
+
+        let text: String
+        if role == .user {
+            guard let extracted = userText(event["content"]), !extracted.isEmpty else { return nil }
+            text = extracted
+        } else {
+            // gemini 이벤트의 content가 비어있으면 (thoughts만 있는 순수 사유) 표시하지 않음.
+            guard let raw = event["content"] as? String else { return nil }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            text = trimmed
+        }
+
+        let kind: MessageKind = {
+            if role == .user { return .userInput }
+            if let calls = event["toolCalls"] as? [Any], !calls.isEmpty {
+                return .assistantIntermediate
+            }
+            return .assistantFinal
+        }()
+
+        return ParsedMessage(
+            id: id,
+            sessionId: sessionId,
+            role: role,
+            kind: kind,
+            text: text,
+            timestamp: timestamp,
+            sourceTool: sourceTool
+        )
+    }
+
+    /// .jsonl 헤더 + 이벤트에서 sessionId / 첫 user 메시지 텍스트 추출 (locator 용).
+    public static func extractMetaFromJSONL(text: String) -> (sessionId: String, firstUserText: String?)? {
+        var sid: String?
+        var firstUser: String?
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard let data = raw.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { continue }
+            if sid == nil, obj["type"] == nil, let s = obj["sessionId"] as? String {
+                sid = s
+                continue
+            }
+            if firstUser == nil, obj["type"] as? String == "user", let t = userText(obj["content"]) {
+                firstUser = t
+            }
+            if sid != nil && firstUser != nil { break }
+        }
+        guard let sid else { return nil }
+        return (sid, firstUser)
     }
 
     public static func parseRoot(_ root: [String: Any]) -> [ParsedMessage] {
