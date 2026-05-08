@@ -3,9 +3,10 @@ import PinCore
 
 struct AppView: View {
     @EnvironmentObject private var store: MessageStore
+    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $sidebarVisibility) {
             VStack(spacing: 0) {
                 ToolSegmentedBar()
                     .padding(.horizontal, 8)
@@ -20,7 +21,21 @@ struct AppView: View {
                 .navigationTitle(store.selectedTool?.displayName ?? "Pin")
         }
         .navigationSplitViewStyle(.balanced)
+        .background(
+            // 메뉴 항목 없이도 ⌘B가 동작하도록 hidden 버튼.
+            Button("Toggle Sidebar", action: toggleSidebar)
+                .keyboardShortcut("b", modifiers: [.command])
+                .hidden()
+        )
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    toggleSidebar()
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .help("Toggle session list (⌘B)")
+            }
             ToolbarItem(placement: .navigation) {
                 Button {
                     store.refreshSessions()
@@ -41,6 +56,12 @@ struct AppView: View {
                 .frame(minWidth: 140)
                 .help("Message sort order")
             }
+        }
+    }
+
+    private func toggleSidebar() {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            sidebarVisibility = (sidebarVisibility == .detailOnly) ? .all : .detailOnly
         }
     }
 }
