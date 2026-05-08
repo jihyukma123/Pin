@@ -22,6 +22,7 @@ public final class MessageStore: ObservableObject {
     private static let pinnedBySessionKey = "pin.pinnedBySession"
 
     private var watcher: SessionWatcher?
+    private var directoryWatcher: DirectoryWatcher?
     private var pinnedBySession: [String: [String]] = [:]
 
     public init() {
@@ -55,6 +56,36 @@ public final class MessageStore: ObservableObject {
         if selectedTool == nil {
             selectedTool = firstNonEmptyTool()
         }
+        startDirectoryWatcherIfNeeded()
+    }
+
+    /// 도구별 세션 루트가 변경되면 자동으로 세션 목록을 다시 스캔한다.
+    /// 첫 refreshSessions 시점에 한 번만 띄운다.
+    private func startDirectoryWatcherIfNeeded() {
+        guard directoryWatcher == nil else { return }
+        let paths = [
+            ClaudeCodeLocator.projectsRoot.path,
+            CodexLocator.sessionsRoot.path,
+            GeminiLocator.tmpRoot.path,
+        ]
+        let w = DirectoryWatcher(paths: paths)
+        w.onChange = { [weak self] in
+            // FSEvents 큐에서 호출 → 무거운 디렉터리 스캔은 백그라운드에서.
+            // 결과가 실제로 변했을 때만 main에서 publish (SwiftUI 노이즈 방지).
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let next = SessionDiscovery.listAll()
+                DispatchQueue.main.async { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if next != self.sessionsByTool {
+                            self.sessionsByTool = next
+                        }
+                    }
+                }
+            }
+        }
+        w.start()
+        directoryWatcher = w
     }
 
     public func selectTool(_ tool: SourceTool) {
@@ -92,6 +123,8 @@ public final class MessageStore: ObservableObject {
     public func stop() {
         watcher?.stop()
         watcher = nil
+        directoryWatcher?.stop()
+        directoryWatcher = nil
     }
 
     public var pinned: [ParsedMessage] {
