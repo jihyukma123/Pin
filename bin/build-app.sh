@@ -37,6 +37,14 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$BIN_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+# SPM이 생성한 리소스 번들들을 .app 안에 동봉.
+# `Bundle.module`이 `Bundle.main.bundleURL/<name>.bundle` 을 찾기 때문에 .app 루트에 둔다.
+RELEASE_DIR="$(dirname "$BIN_PATH")"
+for bundle in "$RELEASE_DIR"/*.bundle; do
+  [[ -e "$bundle" ]] || continue
+  cp -R "$bundle" "$APP_BUNDLE/"
+done
+
 if [[ -f "$PROJECT_ROOT/AppIcon.icns" ]]; then
   cp "$PROJECT_ROOT/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 fi

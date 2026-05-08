@@ -17,7 +17,8 @@ let package = Package(
             dependencies: [
                 "PinCore",
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
-            ]
+            ],
+            resources: [.copy("Resources/Icons")]
         ),
         .target(name: "PinCore"),
         .testTarget(
