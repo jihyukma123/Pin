@@ -18,7 +18,8 @@ public enum ClaudeCodeLocator {
                     title: title,
                     sourceTool: .claudeCode,
                     fileURL: url,
-                    lastModified: mtime(url)
+                    lastModified: mtime(url),
+                    projectLabel: projectLabel(for: url)
                 )
             }
             .sorted { $0.lastModified > $1.lastModified }
@@ -64,5 +65,15 @@ public enum ClaudeCodeLocator {
         let projectHint = cwd.replacingOccurrences(of: "-", with: "/").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let id = String(url.deletingPathExtension().lastPathComponent.prefix(8))
         return "\(projectHint) — \(id)"
+    }
+
+    /// 부모 디렉토리명("-Users-jeff-Documents-c-pin")에서 마지막 path component만 추출.
+    /// `/`는 `-`로 인코딩돼 있으므로 마지막 `-` 뒤를 취한다. 디렉토리명에 `-`가 있으면 손실되지만
+    /// 라벨 용도로는 충분.
+    private static func projectLabel(for url: URL) -> String? {
+        let parent = url.deletingLastPathComponent().lastPathComponent
+        let parts = parent.split(separator: "-", omittingEmptySubsequences: true)
+        guard let last = parts.last else { return nil }
+        return String(last)
     }
 }

@@ -26,7 +26,8 @@ public enum CodexLocator {
                 title: title,
                 sourceTool: .codex,
                 fileURL: url,
-                lastModified: mtime(url)
+                lastModified: mtime(url),
+                projectLabel: extractProjectLabel(url: url)
             )
         }
         .sorted { $0.lastModified > $1.lastModified }
@@ -56,6 +57,22 @@ public enum CodexLocator {
             map[id] = name
         }
         return map
+    }
+
+    /// 첫 줄의 session_meta.payload.cwd에서 마지막 path component를 추출.
+    private static func extractProjectLabel(url: URL) -> String? {
+        // 첫 줄(session_meta)에 base_instructions 통째가 들어있어 수십 KB가 될 수 있다.
+        let lines = readFirstLines(of: url, maxBytes: 512_000)
+        for line in lines {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            guard obj["type"] as? String == "session_meta",
+                  let payload = obj["payload"] as? [String: Any],
+                  let cwd = payload["cwd"] as? String, !cwd.isEmpty else { continue }
+            let last = (cwd as NSString).lastPathComponent
+            return last.isEmpty ? nil : last
+        }
+        return nil
     }
 
     private static func extractTitleFromBody(url: URL) -> String? {

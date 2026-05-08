@@ -71,12 +71,14 @@ public struct SessionRef: Identifiable, Equatable, Sendable, Hashable {
     public let sourceTool: SourceTool
     public let fileURL: URL
     public let lastModified: Date
+    public let projectLabel: String?
 
-    public init(id: String, title: String, sourceTool: SourceTool, fileURL: URL, lastModified: Date) {
+    public init(id: String, title: String, sourceTool: SourceTool, fileURL: URL, lastModified: Date, projectLabel: String? = nil) {
         self.id = id
         self.title = title
         self.sourceTool = sourceTool
         self.fileURL = fileURL
         self.lastModified = lastModified
+        self.projectLabel = projectLabel
     }
 }

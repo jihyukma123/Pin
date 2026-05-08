@@ -67,9 +67,22 @@ struct SessionRow: View {
                     .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.9))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                Text(relativeTime)
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if let label = ref.projectLabel, !label.isEmpty {
+                        Text(label)
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(
+                                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                    .fill(Color.secondary.opacity(0.15))
+                            )
+                    }
+                    Text(relativeTime)
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
