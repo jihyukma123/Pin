@@ -43,6 +43,18 @@ func enumerateFiles(in directory: URL, extensions: Set<String>) -> [URL] {
     return results
 }
 
+/// 빈 세션(아무 질의도 안 한 세션) 판별 기준:
+/// - `<...>` 로 시작하는 환경 컨텍스트성 메시지 제외
+/// - `/clear`, `/model` 등 슬래시 명령 제외
+/// - 그 외 비어있지 않은 사용자 텍스트가 1개 이상이면 "의미 있는 대화" 로 본다.
+func isMeaningfulUserText(_ text: String) -> Bool {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return false }
+    if trimmed.hasPrefix("<") { return false }
+    if trimmed.hasPrefix("/") { return false }
+    return true
+}
+
 func readFirstLines(of url: URL, maxBytes: Int) -> [String] {
     guard let handle = try? FileHandle(forReadingFrom: url) else { return [] }
     defer { try? handle.close() }

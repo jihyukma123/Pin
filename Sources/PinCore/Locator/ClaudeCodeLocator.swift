@@ -10,6 +10,7 @@ public enum ClaudeCodeLocator {
     public static func listSessions() -> [SessionRef] {
         let files = enumerateFiles(in: projectsRoot, extensions: ["jsonl"])
         return files
+            .filter { hasMeaningfulUserMessage(in: $0) }
             .map { url -> SessionRef in
                 let id = url.deletingPathExtension().lastPathComponent
                 let title = extractTitle(from: url) ?? defaultTitle(for: url)
@@ -65,6 +66,30 @@ public enum ClaudeCodeLocator {
         let projectHint = cwd.replacingOccurrences(of: "-", with: "/").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let id = String(url.deletingPathExtension().lastPathComponent.prefix(8))
         return "\(projectHint) — \(id)"
+    }
+
+    /// 세션 파일을 훑어 의미 있는 사용자 메시지가 1개라도 있는지 확인. 없으면 빈 세션으로 간주해 listing에서 제외.
+    private static func hasMeaningfulUserMessage(in url: URL) -> Bool {
+        let lines = readFirstLines(of: url, maxBytes: 512_000)
+        for line in lines {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            guard obj["type"] as? String == "user",
+                  let msg = obj["message"] as? [String: Any] else { continue }
+            if let text = msg["content"] as? String, isMeaningfulUserText(text) {
+                return true
+            }
+            if let blocks = msg["content"] as? [[String: Any]] {
+                for block in blocks {
+                    if block["type"] as? String == "text",
+                       let t = block["text"] as? String,
+                       isMeaningfulUserText(t) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
     }
 
     /// 부모 디렉토리명("-Users-jeff-Documents-c-pin")에서 마지막 path component만 추출.

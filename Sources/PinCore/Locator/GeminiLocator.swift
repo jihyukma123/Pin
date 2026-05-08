@@ -83,12 +83,33 @@ public enum GeminiLocator {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
+    /// 세션 root에 user 타입의 의미 있는 메시지가 1개라도 있는지.
+    private static func hasMeaningfulUserMessage(root: [String: Any]) -> Bool {
+        guard let messages = root["messages"] as? [[String: Any]] else { return false }
+        for m in messages {
+            guard m["type"] as? String == "user" else { continue }
+            // content는 string이거나 [{text: ...}] 블록 배열.
+            if let text = m["content"] as? String, isMeaningfulUserText(text) {
+                return true
+            }
+            if let blocks = m["content"] as? [[String: Any]] {
+                for block in blocks {
+                    if let t = block["text"] as? String, isMeaningfulUserText(t) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
     private static func makeRefFromJSON(_ url: URL, projectLabel: String?) -> SessionRef? {
         guard let data = try? Data(contentsOf: url),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
         guard let sessionId = root["sessionId"] as? String else { return nil }
+        guard hasMeaningfulUserMessage(root: root) else { return nil }
         let title = GeminiAdapter.extractTitle(from: root) ?? "session-\(String(sessionId.prefix(8)))"
         return SessionRef(
             id: sessionId,
@@ -106,6 +127,7 @@ public enum GeminiLocator {
             return nil
         }
         guard let meta = GeminiAdapter.extractMetaFromJSONL(text: text) else { return nil }
+        guard let firstUser = meta.firstUserText, isMeaningfulUserText(firstUser) else { return nil }
         let title: String = {
             if let t = meta.firstUserText, !t.isEmpty {
                 return String(t.prefix(60))

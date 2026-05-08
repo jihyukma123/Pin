@@ -18,6 +18,7 @@ public enum CodexLocator {
 
         return files.compactMap { url -> SessionRef? in
             guard let id = sessionId(from: url) else { return nil }
+            guard hasMeaningfulUserMessage(in: url) else { return nil }
             let title = titleIndex[id]
                 ?? extractTitleFromBody(url: url)
                 ?? "session-\(String(id.prefix(8)))"
@@ -57,6 +58,28 @@ public enum CodexLocator {
             map[id] = name
         }
         return map
+    }
+
+    /// 의미 있는 사용자 메시지가 1개라도 있는지. 슬래시 명령/환경 컨텍스트는 제외.
+    private static func hasMeaningfulUserMessage(in url: URL) -> Bool {
+        let lines = readFirstLines(of: url, maxBytes: 512_000)
+        for line in lines {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            guard obj["type"] as? String == "response_item",
+                  let payload = obj["payload"] as? [String: Any],
+                  payload["type"] as? String == "message",
+                  payload["role"] as? String == "user",
+                  let blocks = payload["content"] as? [[String: Any]] else { continue }
+            for block in blocks {
+                if block["type"] as? String == "input_text",
+                   let text = block["text"] as? String,
+                   isMeaningfulUserText(text) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     /// 첫 줄의 session_meta.payload.cwd에서 마지막 path component를 추출.
