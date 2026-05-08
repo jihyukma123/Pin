@@ -17,6 +17,7 @@ struct AppView: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 260)
         } detail: {
             DetailView()
+                .navigationTitle(store.selectedTool?.displayName ?? "Pin")
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar {

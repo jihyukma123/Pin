@@ -27,7 +27,6 @@ struct SessionListView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 8)
         }
-        .navigationTitle(store.selectedTool?.displayName ?? "Sessions")
     }
 
     @ViewBuilder
